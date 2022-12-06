@@ -9,13 +9,19 @@ namespace Piccolo
         const char* k_unknown_type = "UnknownType";
         const char* k_unknown      = "Unknown";
 
-        static std::map<std::string, ClassFunctionTuple*>      m_class_map;
-        static std::multimap<std::string, FieldFunctionTuple*> m_field_map;
-        static std::map<std::string, ArrayFunctionTuple*>      m_array_map;
+        static std::map<std::string, ClassFunctionTuple*>       m_class_map;
+        static std::multimap<std::string, FieldFunctionTuple*>  m_field_map;
+        static std::multimap<std::string, MethodFunctionTuple*> m_method_map;
+        static std::map<std::string, ArrayFunctionTuple*>       m_array_map;
 
         void TypeMetaRegisterinterface::registerToFieldMap(const char* name, FieldFunctionTuple* value)
         {
             m_field_map.insert(std::make_pair(name, value));
+        }
+
+        void TypeMetaRegisterinterface::registerToMethodMap(const char* name, MethodFunctionTuple* value)
+        {
+            m_method_map.insert(std::make_pair(name, value));
         }
 
         void TypeMetaRegisterinterface::registerToArrayMap(const char* name, ArrayFunctionTuple* value)
@@ -49,6 +55,11 @@ namespace Piccolo
                 delete itr.second;
             }
             m_field_map.clear();
+            for (const auto& itr : m_method_map)
+            {
+                delete itr.second;
+            }
+            m_method_map.clear();
             for (const auto& itr : m_class_map)
             {
                 delete itr.second;
@@ -74,6 +85,16 @@ namespace Piccolo
                 m_is_valid = true;
 
                 ++fileds_iter.first;
+            }
+
+            auto methods_iter = m_method_map.equal_range(type_name);
+            while (methods_iter.first != methods_iter.second)
+            {
+                MethodAccessor f_method(methods_iter.first->second);
+                m_methods.emplace_back(f_method);
+                m_is_valid = true;
+
+                ++methods_iter.first;
             }
         }
 
@@ -156,6 +177,27 @@ namespace Piccolo
             return FieldAccessor(nullptr);
         }
 
+        int TypeMeta::getMethodsList(MethodAccessor*& out_list)
+        {
+            int count = m_methods.size();
+            out_list = new MethodAccessor[count];
+            for (int i = 0; i < count; ++i)
+            {
+                out_list[i] = m_methods[i];
+            }
+            return count;
+        }
+
+        MethodAccessor TypeMeta::getMethodByName(const char* name)
+        {
+            const auto it = std::find_if(m_methods.begin(), m_methods.end(), [&](const auto& i) {
+                return std::strcmp(i.getMethodName(), name) == 0;
+                });
+            if (it != m_methods.end())
+                return *it;
+            return MethodAccessor(nullptr);
+        }
+
         TypeMeta& TypeMeta::operator=(const TypeMeta& dest)
         {
             if (this == &dest)
@@ -164,6 +206,9 @@ namespace Piccolo
             }
             m_fields.clear();
             m_fields = dest.m_fields;
+
+            m_methods.clear();
+            m_methods = dest.m_methods;
 
             m_type_name = dest.m_type_name;
             m_is_valid  = dest.m_is_valid;
@@ -234,6 +279,47 @@ namespace Piccolo
             m_functions       = dest.m_functions;
             m_field_name      = dest.m_field_name;
             m_field_type_name = dest.m_field_type_name;
+            return *this;
+        }
+
+        void MethodAccessor::invoke(void* instance)
+        {
+            // todo: should check validation
+            std::get<0>(*m_functions)(instance);
+        }
+
+        MethodAccessor::MethodAccessor(MethodFunctionTuple* functions)
+            :m_functions(functions)
+        {
+            m_name = k_unknown;
+            if (m_functions == nullptr)
+            {
+                return;
+            }
+            auto aa = &MethodAccessor::invoke;
+            m_name = std::get<1>(*m_functions)();
+        }
+
+        MethodAccessor::MethodAccessor()
+        {
+            m_functions = nullptr;
+            m_name = k_unknown;
+        }
+
+        const char* MethodAccessor::getMethodName() const
+        {
+            return m_name;
+        }
+
+        MethodAccessor& MethodAccessor::operator= (MethodAccessor& dest)
+        {
+            if (this == &dest)
+            {
+                return *this;
+            }
+            m_functions = dest.m_functions;
+            m_name = dest.m_name;
+
             return *this;
         }
 

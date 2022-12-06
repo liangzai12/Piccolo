@@ -25,6 +25,8 @@ public:
     List getChildren(void) const;
     void visitChildren(Visitor visitor, void* data = nullptr);
 
+    bool isStatic(void) const;
+
 private:
     CXCursor m_handle;
 };

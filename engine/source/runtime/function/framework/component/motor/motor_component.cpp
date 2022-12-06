@@ -80,7 +80,10 @@ namespace Piccolo
 
         transform_component->setPosition(m_target_position);
     }
-
+    void MotorComponent::getOffStuckDead()
+    {
+        LOG_INFO("some get off stuck dead logic");
+    }
     void MotorComponent::calculatedDesiredHorizontalMoveSpeed(unsigned int command, float delta_time)
     {
         bool has_move_command = ((unsigned int)GameCommand::forward | (unsigned int)GameCommand::backward |

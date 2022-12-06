@@ -43,6 +43,11 @@ std::string Cursor::getSourceFile(void) const
     return filename;
 }
 
+bool Cursor::isStatic(void) const
+{
+    return clang_CXXMethod_isStatic(m_handle) ? true : false;
+}
+
 bool Cursor::isDefinition(void) const { return clang_isCursorDefinition(m_handle); }
 
 CursorType Cursor::getType(void) const { return clang_getCursorType(m_handle); }

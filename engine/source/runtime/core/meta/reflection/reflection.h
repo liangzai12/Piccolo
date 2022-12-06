@@ -23,20 +23,21 @@ namespace Piccolo
 #endif // __REFLECTION_PARSER__
 
 #define REFLECTION_BODY(class_name) \
-    friend class Reflection::TypeFieldReflectionOparator::Type##class_name##Operator; \
+    friend class Reflection::TypeReflectionOparator::Type##class_name##Operator; \
     friend class Serializer;
     // public: virtual std::string getTypeName() override {return #class_name;}
 
 #define REFLECTION_TYPE(class_name) \
     namespace Reflection \
     { \
-        namespace TypeFieldReflectionOparator \
+        namespace TypeReflectionOparator \
         { \
             class Type##class_name##Operator; \
         } \
     };
 
 #define REGISTER_FIELD_TO_MAP(name, value) TypeMetaRegisterinterface::registerToFieldMap(name, value);
+#define REGISTER_METHOD_TO_MAP(name, value) TypeMetaRegisterinterface::registerToMethodMap(name, value);
 #define REGISTER_BASE_CLASS_TO_MAP(name, value) TypeMetaRegisterinterface::registerToClassMap(name, value);
 #define REGISTER_ARRAY_TO_MAP(name, value) TypeMetaRegisterinterface::registerToArrayMap(name, value);
 #define UNREGISTER_ALL TypeMetaRegisterinterface::unregisterAll();
@@ -85,8 +86,11 @@ namespace Piccolo
     typedef std::function<Json(void*)>                                 WriteJsonByName;
     typedef std::function<int(Reflection::ReflectionInstance*&, void*)> GetBaseClassReflectionInstanceListFunc;
 
+    typedef std::function<void(void*)> InvokeFunc;
+
     typedef std::tuple<SetFuncion, GetFuncion, GetNameFuncion, GetNameFuncion, GetNameFuncion, GetBoolFunc>
         FieldFunctionTuple;
+    typedef std::tuple<InvokeFunc,GetNameFuncion> MethodFunctionTuple;
     typedef std::tuple<GetBaseClassReflectionInstanceListFunc, ConstructorWithJson, WriteJsonByName>
                                                                                                 ClassFunctionTuple;
     typedef std::tuple<SetArrayFunc, GetArrayFunc, GetSizeFunc, GetNameFuncion, GetNameFuncion> ArrayFunctionTuple;
@@ -98,6 +102,7 @@ namespace Piccolo
         public:
             static void registerToClassMap(const char* name, ClassFunctionTuple* value);
             static void registerToFieldMap(const char* name, FieldFunctionTuple* value);
+            static void registerToMethodMap(const char* name, MethodFunctionTuple* value);
             static void registerToArrayMap(const char* name, ArrayFunctionTuple* value);
 
             static void unregisterAll();
@@ -105,6 +110,7 @@ namespace Piccolo
         class TypeMeta
         {
             friend class FieldAccessor;
+            friend class MethodAccessor;
             friend class ArrayAccessor;
             friend class TypeMetaRegisterinterface;
 
@@ -127,6 +133,9 @@ namespace Piccolo
 
             FieldAccessor getFieldByName(const char* name);
 
+            int getMethodsList(MethodAccessor*& out_list);
+            MethodAccessor getMethodByName(const char* name);
+
             bool isValid() { return m_is_valid; }
 
             TypeMeta& operator=(const TypeMeta& dest);
@@ -136,6 +145,7 @@ namespace Piccolo
 
         private:
             std::vector<FieldAccessor, std::allocator<FieldAccessor>> m_fields;
+            std::vector<MethodAccessor, std::allocator<MethodAccessor>> m_methods;
 
             std::string m_type_name;
 
@@ -177,6 +187,29 @@ namespace Piccolo
             const char*         m_field_name;
             const char*         m_field_type_name;
         };
+
+        class MethodAccessor
+        {
+            friend class TypeMeta;
+        private:
+            
+            MethodAccessor(MethodFunctionTuple* functions);
+        public:
+            MethodAccessor();
+
+            const char* getMethodName() const;
+
+            MethodAccessor& operator= (MethodAccessor& dest);
+
+            void invoke(void* instance);
+
+       
+        private:
+
+            MethodFunctionTuple* m_functions;
+            const char* m_name;
+        };
+
 
         /**
          *  Function reflection is not implemented, so use this as an std::vector accessor

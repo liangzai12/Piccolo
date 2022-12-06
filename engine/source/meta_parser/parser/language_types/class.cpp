@@ -26,18 +26,30 @@ Class::Class(const Cursor& cursor, const Namespace& current_namespace) :
             case CXCursor_FieldDecl:
                 m_fields.emplace_back(new Field(child, current_namespace, this));
                 break;
+            case CXCursor_CXXMethod:
+                if (!child.isStatic())
+                {
+                    m_methods.emplace_back(new Method(child, current_namespace, this));
+                }
+                break;
             default:
                 break;
         }
     }
 }
 
-bool Class::shouldCompile(void) const { return shouldCompileFilds(); }
+bool Class::shouldCompile(void) const { return shouldCompileFilds() | shouldCompileMethods(); }
 
 bool Class::shouldCompileFilds(void) const
 {
     return m_meta_data.getFlag(NativeProperty::All) || m_meta_data.getFlag(NativeProperty::Fields) ||
            m_meta_data.getFlag(NativeProperty::WhiteListFields);
+}
+
+bool Class::shouldCompileMethods(void) const
+{
+    return m_meta_data.getFlag(NativeProperty::All) || m_meta_data.getFlag(NativeProperty::Methods) ||
+        m_meta_data.getFlag(NativeProperty::WhiteListMethods);
 }
 
 std::string Class::getClassName(void) { return m_name; }

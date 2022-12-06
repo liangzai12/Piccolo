@@ -66,12 +66,67 @@ namespace Piccolo
         }
     }
 
+    void LuaComponent::invoke(std::weak_ptr<GObject> game_object, const char* name)
+    {
+        std::string fullname(name);
+        std::size_t pos         = fullname.find_last_of('.');
+        std::string callee_name = fullname.substr(0, pos);
+        std::string method_name = fullname.substr(pos + 1, fullname.size());
+
+        // get meta and instance
+        Piccolo::Reflection::TypeMeta meta;
+        void*                         callee_instance;
+        if (callee_name.find('.') != callee_name.npos)
+        {
+            Reflection::FieldAccessor target_field;
+            if (find_component_field(game_object, callee_name.c_str(), target_field, callee_instance))
+            {
+                target_field.getTypeMeta(meta);
+            }
+            else
+            {
+                return;
+            }
+        }
+        else
+        {
+            auto components     = game_object.lock()->getComponents();
+            auto component_iter = std::find_if(
+                components.begin(), components.end(), [callee_name](auto c) { return c.getTypeName() == callee_name; });
+            if (component_iter != components.end())
+            {
+                meta = Piccolo::Reflection::TypeMeta::newMetaFromName(callee_name);
+
+                callee_instance = component_iter->getPtr();
+            }
+            else
+            {
+                return;
+            }
+        }
+
+        // invoke method
+        Reflection::MethodAccessor* methods;
+        int                         methods_count = meta.getMethodsList(methods);
+        auto                        methods_iter  = std::find_if(
+            methods, methods + methods_count, [method_name](auto m) { return m.getMethodName() == method_name; });
+
+        if (methods_iter == methods + methods_count)
+        {
+            delete[] methods;
+            return;
+        }
+        Reflection::MethodAccessor method_accessor = *methods_iter;
+        delete[] methods;
+        method_accessor.invoke(callee_instance);
+    }
     void LuaComponent::postLoadResource(std::weak_ptr<GObject> parent_object)
     {
         m_parent_object = parent_object;
         m_lua_state.open_libraries(sol::lib::base);
         m_lua_state.set_function("set_float", &LuaComponent::set<float>);
         m_lua_state.set_function("get_bool", &LuaComponent::get<bool>);
+        m_lua_state.set_function("invoke", &LuaComponent::invoke);
         m_lua_state["GameObject"] = m_parent_object;
         return;
     }

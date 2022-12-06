@@ -35,6 +35,10 @@ namespace Generator
         Mustache::data class_field_defines = Mustache::data::type::list;
         genClassFieldRenderData(class_temp, class_field_defines);
         class_def.set("class_field_defines", class_field_defines);
+
+        Mustache::data class_method_defines = Mustache::data::type::list;
+        genClassMethodRenderData(class_temp, class_method_defines);
+        class_def.set("class_method_defines", class_method_defines);
     }
     void GeneratorInterface::genClassFieldRenderData(std::shared_ptr<Class> class_temp, Mustache::data& feild_defs)
     {
@@ -53,5 +57,21 @@ namespace Generator
             filed_define.set("class_field_is_vector", is_vector);
             feild_defs.push_back(filed_define);
         }
+    }
+    void GeneratorInterface::genClassMethodRenderData(std::shared_ptr<Class> class_temp, Mustache::data& method_defs)
+    {
+        for (auto& method: class_temp->m_methods)
+        {
+            if (!method->ShouldCompile())
+            {
+                continue;
+            }
+            printf("ddd %s\n", method->m_name.c_str());
+            Mustache::data method_define;
+            method_define.set("class_method_name", method->m_name);
+
+            method_defs.push_back(method_define);
+        }
+            
     }
 } // namespace Generator
